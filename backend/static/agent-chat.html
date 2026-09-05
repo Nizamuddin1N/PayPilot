@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Phase 4 test — buyer agent chat</title>
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #fafafa;
+    --card: #ffffff;
+    --border: #e5e5e5;
+    --text: #18181b;
+    --muted: #71717a;
+    --accent: #2563eb;
+    --accent-hover: #1d4ed8;
+    --user-bubble: #2563eb;
+    --agent-bubble: #f4f4f5;
+    --success: #16a34a;
+    --danger: #dc2626;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    display: flex;
+    justify-content: center;
+    padding: 2rem 1rem;
+  }
+  .wrap { width: 100%; max-width: 640px; }
+  h1 { font-size: 1.35rem; font-weight: 600; margin: 0 0 0.25rem; }
+  .sub { color: var(--muted); font-size: 0.9rem; margin: 0 0 1.5rem; }
+  #log {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem;
+    height: 460px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .msg {
+    max-width: 80%;
+    padding: 0.55rem 0.85rem;
+    border-radius: 14px;
+    font-size: 0.9rem;
+    line-height: 1.45;
+    white-space: pre-wrap;
+  }
+  .msg p { margin: 0 0 0.5em; }
+  .msg p:last-child { margin-bottom: 0; }
+  .msg ul { margin: 0.15em 0 0.5em 1.1em; padding: 0; }
+  .msg ul:last-child { margin-bottom: 0; }
+  .msg li { margin-bottom: 0.15em; }
+  .msg code {
+    background: rgba(0, 0, 0, 0.07);
+    padding: 0.05em 0.32em;
+    border-radius: 4px;
+    font-family: ui-monospace, monospace;
+    font-size: 0.85em;
+  }
+  .msg.user {
+    align-self: flex-end;
+    background: var(--user-bubble);
+    color: white;
+    border-bottom-right-radius: 4px;
+  }
+  .msg.agent {
+    align-self: flex-start;
+    background: var(--agent-bubble);
+    color: var(--text);
+    border-bottom-left-radius: 4px;
+  }
+  .msg.system {
+    align-self: center;
+    color: var(--muted);
+    font-size: 0.78rem;
+    background: none;
+  }
+  .order-card {
+    align-self: flex-start;
+    max-width: 80%;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 12px;
+    padding: 0.75rem 0.9rem;
+    font-size: 0.85rem;
+  }
+  .upsell {
+    align-self: flex-start;
+    max-width: 80%;
+    background: #fdf4ff;
+    border: 1px solid #f3e8ff;
+    border-radius: 12px;
+    padding: 0.6rem 0.85rem;
+    font-size: 0.83rem;
+    color: #7e22ce;
+  }
+  .upsell .tag { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; opacity: 0.7; display: block; margin-bottom: 0.15rem; }
+  .order-card .product-name { font-weight: 600; color: var(--text); margin-bottom: 0.45rem; }
+  .order-card .row { display: flex; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.15rem; color: var(--muted); }
+  .order-card .row span:last-child:not(.status) { text-align: right; color: var(--text); }
+  .order-card .row .status { text-align: right; }
+  .order-card button {
+    margin-top: 0.5rem;
+    width: 100%;
+    border: none;
+    border-radius: 8px;
+    padding: 0.5rem;
+    background: var(--accent);
+    color: white;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .order-card button:hover { background: var(--accent-hover); }
+  .order-card.paid { background: #f0fdf4; border-color: #bbf7d0; }
+  .order-card.paid .status { color: var(--success); font-weight: 600; }
+  form {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+  }
+  input[type=text] {
+    flex: 1;
+    padding: 0.65rem 0.9rem;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    font-size: 0.9rem;
+  }
+  input[type=text]:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  button.send {
+    border: none;
+    border-radius: 10px;
+    padding: 0.65rem 1.1rem;
+    background: var(--accent);
+    color: white;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  button.send:hover { background: var(--accent-hover); }
+  button.send:disabled { background: #d4d4d8; cursor: not-allowed; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Buyer agent — test chat</h1>
+    <p class="sub">Conversation history persists server-side per session (in-memory, resets on server restart).</p>
+    <div id="log"></div>
+    <form id="form">
+      <input id="input" type="text" placeholder="e.g. I want wireless earbuds under 2000 rupees" autocomplete="off" />
+      <button class="send" type="submit">Send</button>
+    </form>
+  </div>
+
+<script>
+const API = window.location.origin;
+let sessionId = null;
+const log = document.getElementById("log");
+
+function addUpsell(text) {
+  const div = document.createElement("div");
+  div.className = "upsell";
+  div.innerHTML = `<span class="tag">you might also like</span>`;
+  div.append(text);
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function renderInline(s) {
+  s = escapeHtml(s);
+  s = s.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  s = s.replace(/`([^`]+)`/g, "<code>$1</code>");
+  return s;
+}
+
+// Minimal markdown for Gemini's replies: bold, inline code, bullet lists.
+// No external library — a demo shouldn't depend on a CDN script loading.
+function renderMarkdown(text) {
+  let html = "";
+  let inList = false;
+  for (const line of text.split("\n")) {
+    const bullet = line.match(/^\s*[*-]\s+(.*)$/);
+    if (bullet) {
+      if (!inList) { html += "<ul>"; inList = true; }
+      html += `<li>${renderInline(bullet[1])}</li>`;
+      continue;
+    }
+    if (inList) { html += "</ul>"; inList = false; }
+    html += line.trim() ? `<p>${renderInline(line)}</p>` : "";
+  }
+  if (inList) html += "</ul>";
+  return html;
+}
+
+function addMsg(role, text) {
+  const div = document.createElement("div");
+  div.className = "msg " + role;
+  if (role === "agent") {
+    div.innerHTML = renderMarkdown(text);
+  } else {
+    div.textContent = text;
+  }
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+  return div;
+}
+
+function addOrderCard(order) {
+  const div = document.createElement("div");
+  div.className = "order-card";
+  div.innerHTML = `
+    <div class="product-name">${escapeHtml(order.product_name)}</div>
+    <div class="row"><span>Amount</span><span>₹${order.amount_inr}</span></div>
+    <div class="row"><span>Status</span><span class="status">${order.status}</span></div>
+    <button>Pay Now</button>
+  `;
+  div.querySelector("button").addEventListener("click", () => payOrder(order, div));
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+function payOrder(order, cardEl) {
+  const rzp = new Razorpay({
+    key: order.razorpay_key_id,
+    currency: order.currency,
+    order_id: order.razorpay_order_id,
+    name: "Agentic Commerce — Test",
+    description: "Buyer agent purchase",
+    handler: async function (response) {
+      const verifyRes = await fetch(`${API}/api/orders/${order.order_id}/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          order_id: order.order_id,
+          razorpay_order_id: response.razorpay_order_id,
+          razorpay_payment_id: response.razorpay_payment_id,
+          razorpay_signature: response.razorpay_signature,
+        }),
+      });
+      const result = await verifyRes.json();
+      if (verifyRes.ok) {
+        cardEl.classList.add("paid");
+        cardEl.querySelector(".status").textContent = result.status;
+        cardEl.querySelector("button").remove();
+      } else {
+        addMsg("system", `Verification failed: ${JSON.stringify(result)}`);
+      }
+    },
+    theme: { color: "#2563eb" },
+  });
+  rzp.on("payment.failed", async function (response) {
+    cardEl.querySelector("button").remove();
+    const declineRes = await fetch(`${API}/api/orders/${order.order_id}/decline`, { method: "POST" });
+    const result = await declineRes.json();
+    // The backend's message already names the alternative product and price
+    // (plan section 7) — no separate buy flow for it in this test harness.
+    addMsg("agent", result.message);
+  });
+  rzp.open();
+}
+
+document.getElementById("form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const input = document.getElementById("input");
+  const message = input.value.trim();
+  if (!message) return;
+  input.value = "";
+  addMsg("user", message);
+
+  const sendBtn = document.querySelector("button.send");
+  sendBtn.disabled = true;
+  try {
+    const res = await fetch(`${API}/api/agent/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session_id: sessionId, message }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      addMsg("system", `Error: ${JSON.stringify(data)}`);
+      return;
+    }
+    sessionId = data.session_id;
+    addMsg("agent", data.reply);
+    if (data.order) addOrderCard(data.order);
+    if (data.upsell && !/no good suggestion/i.test(data.upsell)) addUpsell(data.upsell);
+  } finally {
+    sendBtn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>

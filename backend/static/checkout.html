@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Phase 1 test — order &amp; payment</title>
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #fafafa;
+    --card: #ffffff;
+    --border: #e5e5e5;
+    --text: #18181b;
+    --muted: #71717a;
+    --accent: #2563eb;
+    --accent-hover: #1d4ed8;
+    --success: #16a34a;
+    --danger: #dc2626;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding: 2.5rem 1.5rem;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; }
+  h1 { font-size: 1.35rem; font-weight: 600; margin: 0 0 0.25rem; }
+  .sub { color: var(--muted); font-size: 0.9rem; margin: 0 0 2rem; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 1rem;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  .card h3 { margin: 0; font-size: 0.98rem; font-weight: 600; }
+  .card .cat { color: var(--muted); font-size: 0.78rem; }
+  .card .price { font-size: 1.15rem; font-weight: 600; margin-top: 0.3rem; }
+  .card .stock { font-size: 0.78rem; color: var(--muted); }
+  .card .stock.out { color: var(--danger); }
+  button {
+    margin-top: 0.5rem;
+    border: none;
+    border-radius: 8px;
+    padding: 0.55rem 0.8rem;
+    background: var(--accent);
+    color: white;
+    font-size: 0.88rem;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  button:hover { background: var(--accent-hover); }
+  button:disabled { background: #d4d4d8; cursor: not-allowed; }
+  #status {
+    margin-top: 2rem;
+    padding: 1rem 1.2rem;
+    border-radius: 10px;
+    font-size: 0.88rem;
+    display: none;
+    white-space: pre-wrap;
+  }
+  #status.show { display: block; }
+  #status.ok { background: #f0fdf4; border: 1px solid #bbf7d0; color: var(--success); }
+  #status.err { background: #fef2f2; border: 1px solid #fecaca; color: var(--danger); }
+  #status.pending { background: #eff6ff; border: 1px solid #bfdbfe; color: var(--accent); }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Phase 1 test harness</h1>
+    <p class="sub">Order → Razorpay Checkout → signature verification. No agent involved.</p>
+    <div id="grid" class="grid"></div>
+    <div id="status"></div>
+  </div>
+
+<script>
+const API = window.location.origin;
+const statusEl = document.getElementById("status");
+
+function setStatus(kind, text) {
+  statusEl.className = "show " + kind;
+  statusEl.textContent = text;
+}
+
+async function loadCatalog() {
+  const res = await fetch(`${API}/api/catalog`);
+  const products = await res.json();
+  const grid = document.getElementById("grid");
+  grid.innerHTML = "";
+  for (const p of products) {
+    const card = document.createElement("div");
+    card.className = "card";
+    const outOfStock = p.stock <= 0;
+    card.innerHTML = `
+      <h3>${p.name}</h3>
+      <div class="cat">${p.category}</div>
+      <div class="price">₹${p.price_inr}</div>
+      <div class="stock ${outOfStock ? "out" : ""}">${outOfStock ? "Out of stock" : p.stock + " in stock"}</div>
+      <button ${outOfStock ? "disabled" : ""} data-id="${p.id}">Buy</button>
+    `;
+    card.querySelector("button").addEventListener("click", () => buy(p.id));
+    grid.appendChild(card);
+  }
+}
+
+async function buy(productId) {
+  setStatus("pending", "Creating order...");
+  const createRes = await fetch(`${API}/api/orders`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ product_id: productId }),
+  });
+  if (!createRes.ok) {
+    const err = await createRes.json();
+    setStatus("err", `Order creation failed: ${err.detail}`);
+    return;
+  }
+  const order = await createRes.json();
+
+  const rzp = new Razorpay({
+    key: order.razorpay_key_id,
+    currency: order.currency,
+    order_id: order.razorpay_order_id,
+    name: "Agentic Commerce — Test",
+    description: "Phase 1 test purchase",
+    handler: async function (response) {
+      setStatus("pending", "Verifying payment...");
+      const verifyRes = await fetch(`${API}/api/orders/${order.order_id}/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          order_id: order.order_id,
+          razorpay_order_id: response.razorpay_order_id,
+          razorpay_payment_id: response.razorpay_payment_id,
+          razorpay_signature: response.razorpay_signature,
+        }),
+      });
+      const result = await verifyRes.json();
+      if (verifyRes.ok) {
+        setStatus("ok", `Paid. order_id=${result.order_id} status=${result.status}`);
+        loadCatalog();
+      } else {
+        setStatus("err", `Verification failed: ${JSON.stringify(result)}`);
+      }
+    },
+    modal: {
+      ondismiss: function () {
+        setStatus("err", "Checkout closed before completing payment.");
+      },
+    },
+    theme: { color: "#2563eb" },
+  });
+
+  rzp.on("payment.failed", async function (response) {
+    setStatus("pending", "Payment declined — checking recovery options...");
+    const declineRes = await fetch(`${API}/api/orders/${order.order_id}/decline`, { method: "POST" });
+    const result = await declineRes.json();
+    setStatus("err", result.message + (result.alternative ? ` (${result.alternative.name}, ₹${result.alternative.price_inr})` : ""));
+    loadCatalog();
+  });
+
+  rzp.open();
+}
+
+loadCatalog();
+</script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+# Environment files -- never commit real credentials.
+# (env.backend.example and env.frontend.local.example are placeholder
+# templates with no real values -- not matched by these patterns, safe to commit.)
+.env
+.env.*
+
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# SQLite runtime data
+*.db
+
+# Logs from local dev servers/tunnels
+*.log
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+
+# Editor/OS cruft
+.DS_Store

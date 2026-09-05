@@ -1,0 +1,9 @@
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+setuptools<81
+razorpay==1.4.2
+sqlalchemy==2.0.36
+pydantic==2.10.4
+python-dotenv==1.0.1
+google-genai
+tenacity
