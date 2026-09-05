@@ -1,4 +1,4 @@
-# TrustRail — A Guardrailed AI Buyer Agent for Razorpay
+# /SPRINT’26 — A Guardrailed AI Buyer Agent for Razorpay
 
 **Track 1: AI Growth & Agentic Commerce.** A Razorpay test-mode merchant that's
 fully transactable by an AI buyer agent, end to end — with visible guardrails,
