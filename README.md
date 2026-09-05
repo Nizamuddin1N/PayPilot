@@ -5,6 +5,27 @@ fully transactable by an AI buyer agent, end to end — with visible guardrails,
 a live audit trail, and graceful failure handling, not just a bot that talks
 to its own store.
 
+## Screenshots
+
+*Everything below is a real run against the live system — real Gemini tool
+calls, a real Razorpay test-mode order, real audit log entries — not mockups.*
+
+**Buyer agent chat** — a purchase inside the guardrails, with the upsell
+stretch agent's suggestion below it:
+
+![Buyer agent chat](docs/screenshots/buyer-agent-chat.png)
+
+**Merchant audit dashboard** — the same conversation's full timeline: catalog
+search (self-correcting across two attempts), the confirmation gate, the
+order, and the upsell suggestion, each in plain language:
+
+![Audit dashboard](docs/screenshots/audit-dashboard.png)
+
+**Catalog / order test harness** (no agent involved) — the Phase-1 flow this
+was built on top of, `search_catalog` → order → real Razorpay Checkout:
+
+![Catalog and checkout](docs/screenshots/catalog-checkout.png)
+
 ## What this is
 
 An AI agent (Gemini, via function calling) can browse a real product catalog,
