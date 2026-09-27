@@ -1,6 +1,6 @@
 # PayPilot — Guardrailed AI Buyer Agent
 
-**Track 1: AI Growth & Agentic Commerce.** A Razorpay test-mode merchant that's
+**AI Growth & Agentic Commerce.** A Razorpay test-mode merchant that's
 fully transactable by an AI buyer agent, end to end — with visible guardrails,
 a live audit trail, and graceful failure handling, not just a bot that talks
 to its own store.
